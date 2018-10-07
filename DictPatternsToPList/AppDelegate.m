@@ -96,9 +96,11 @@
     [outFP appendFormat:@"/%@", outFile.stringValue];
 
     // Get a list of lines from the input file
-    NSMutableArray *patternList = [self getLinesFromFile:inFP];
-    NSString *lineCountMsg = [[NSString alloc] initWithFormat:@"Got %ld entries.",
-                                        (unsigned long)[patternList count]];
+    NSNumber *commentCount = [[NSNumber alloc] initWithInt:0];
+    NSMutableArray *patternList = [self getLinesFromFile:inFP commentVar:&commentCount];
+    NSString *lineCountMsg = [[NSString alloc] initWithFormat:@"Got %ld entries, discarded %d comments.",
+                                        (unsigned long)[patternList count],
+                                        [commentCount intValue]];
     msg.stringValue = lineCountMsg;
 
     // TODO: Output the CSV lines to a PList
@@ -107,9 +109,10 @@
     
 }
 
-- (NSMutableArray *) getLinesFromFile: (NSString *) filename {
+- (NSMutableArray *) getLinesFromFile: (NSString *) filename commentVar:(NSNumber **) commentCount {
+    // Note: Double pointer used so modified value of commentCout can be sent back.
     
-    NSMutableArray *rval = [[NSMutableArray alloc] initWithCapacity:80];
+    NSMutableArray *rval = [[NSMutableArray alloc] initWithCapacity:128];
 
     // Read the infile
     NSData *inData = [self readDataFromFileAtPath:filename];
@@ -119,9 +122,9 @@
     // Prep buffer and range for parsing data
     Byte EOL_MARKER = 0x0a; // Newline \n
     Byte EOF_MARKER = 0x00; // EOF nulls
-    int BUFF_SIZE = (totalBytes < 80) ? (int)totalBytes : 80;
+    int BUFF_SIZE = (totalBytes < 128) ? (int)totalBytes : 128;
     
-    Byte buff[80]; // setting size dynamically (using BUFF_SIZE) gives zero size
+    Byte buff[128]; // setting size dynamically (using BUFF_SIZE) gives zero size
 
     NSRange readRange;
     readRange.location = 0;
@@ -129,9 +132,10 @@
 
     int endPos = 0;
     NSUInteger bytesRead = 0;
+    int cCount = [*commentCount intValue];
     while (bytesRead < totalBytes) {
         // Clean the buffer
-        for (int idx=0; idx<80; idx++)
+        for (int idx=0; idx<128; idx++)
             buff[idx] = 0;
 
         // Read the first chunk
@@ -151,8 +155,13 @@
                                                          length:endPos
                                                        encoding:NSASCIIStringEncoding];
 
-        // Add the string to the return array
-        [rval addObject:currentLine];
+        // Skip lines that begin with a #
+        if ([currentLine characterAtIndex:0] == '#')
+            cCount++;
+        else {
+            // Add the string to the return array
+            [rval addObject:currentLine];
+        }
         
         // Update the byte count and range to be read next
         bytesRead += endPos + 1; // add 1 for EOL marker
@@ -163,6 +172,10 @@
             readRange.length = totalBytes - readRange.location;
         
     }
+    
+    // Put comment count back into NSNumber wrapper.
+    //NSLog(@"Got comment count = %d", cCount);
+    *commentCount = [NSNumber numberWithInt:cCount];
     
     return rval;
     
