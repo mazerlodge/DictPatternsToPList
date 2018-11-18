@@ -64,7 +64,7 @@
     [fields addObject:inFile.stringValue];
     [fields addObject:outFile.stringValue];
     
-    // NOTE: V2 Enhancement, store this is the current user's library
+    // TODO: V2 Enhancement, store this is the current user's library
     //       It seems the directory must exist before attempting to write the file.
     //NSString *settingsFile = [@"~/Library/SPSW/DictPatternsToPList/DictPatternsToPList.plist" stringByExpandingTildeInPath];
     //NSLog(@"%@",settingsFile);
@@ -98,7 +98,7 @@
     // Get a list of lines from the input file
     NSNumber *commentCount = [[NSNumber alloc] initWithInt:0];
     NSMutableArray *patternList = [self getLinesFromFile:inFP commentVar:&commentCount];
-    NSString *lineCountMsg = [[NSString alloc] initWithFormat:@"Got %ld entries, discarded %d comments.",
+    NSString *lineCountMsg = [[NSString alloc] initWithFormat:@"Got %ld entries, discarded %d comments or blank lines.",
                                         (unsigned long)[patternList count],
                                         [commentCount intValue]];
     msg.stringValue = lineCountMsg;
@@ -156,7 +156,7 @@
                                                        encoding:NSASCIIStringEncoding];
 
         // Skip lines that begin with a #
-        if ([currentLine characterAtIndex:0] == '#')
+        if (([currentLine length] < 1) || ([currentLine characterAtIndex:0] == '#'))
             cCount++;
         else {
             // Add the string to the return array
